@@ -1,0 +1,17 @@
+{
+  "weights": "runs/baseline/yolov8s/weights/best.pt",
+  "patch": "runs/attack/patch_s30/patch.png",
+  "data_root": "data_yolo",
+  "name": "yolov8s",
+  "device": "cuda",
+  "imgsz": 640,
+  "patch_scale": 0.3,
+  "min_box": 12,
+  "factors": [
+    "rotation_deg",
+    "brightness",
+    "resolution",
+    "jpeg_quality",
+    "perspective"
+  ]
+}

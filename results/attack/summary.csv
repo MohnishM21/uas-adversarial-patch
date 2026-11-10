@@ -1,0 +1,10 @@
+run,target_model,patch,patch_scale,val_clean,val_random_noise,val_adversarial,val_adv_drop_%,val_noise_drop_%,test_clean,test_random_noise,test_adversarial,test_adv_drop_%,test_noise_drop_%
+ens_on_yolo11s,yolo11s,patch_ens,0.3,0.743,0.501,0.246,66.8,32.6,0.469,0.408,0.264,43.8,13.0
+ens_on_yolov8n,yolov8n,patch_ens,0.3,0.689,0.517,0.354,48.7,25.0,0.465,0.4,0.317,31.8,14.0
+patch_ens,yolov8s,patch_ens,0.3,0.622,0.376,0.122,80.3,39.5,0.49,0.393,0.224,54.3,19.7
+patch_s30,yolov8s,patch_s30,0.3,0.622,0.376,0.129,79.2,39.5,0.49,0.393,0.226,53.9,19.7
+sweep_s01,yolov8s,patch_s30,0.1,0.622,0.618,0.535,14.1,0.7,0.49,0.484,0.447,8.9,1.3
+sweep_s02,yolov8s,patch_s30,0.2,0.622,0.506,0.299,52.0,18.7,0.49,0.417,0.287,41.4,14.8
+sweep_s04,yolov8s,patch_s30,0.4,0.622,0.202,0.053,91.5,67.6,0.49,0.396,0.166,66.1,19.2
+transfer_yolo11s,yolo11s,patch_s30,0.3,0.743,0.501,0.35,52.9,32.6,0.469,0.408,0.309,34.1,13.0
+transfer_yolov8n,yolov8n,patch_s30,0.3,0.689,0.517,0.409,40.7,25.0,0.465,0.4,0.308,33.6,14.0

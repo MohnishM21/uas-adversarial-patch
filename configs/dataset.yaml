@@ -1,0 +1,12 @@
+# YOLO dataset config, built by src/prepare_data.py into data_yolo/.
+# Class order verified visually against the label files (it differs from the README's listing order).
+path: data_yolo  # relative to the project root (run scripts from there)
+train: train/images
+val: val/images
+test: test/images
+
+names:
+  0: Aircraft
+  1: Building
+  2: Military_Truck
+  3: Tank

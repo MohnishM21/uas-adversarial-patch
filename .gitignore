@@ -1,0 +1,22 @@
+# Publish only code, configs, result summaries, charts and the report source (whitelist).
+/*
+!/.gitignore
+!/README.md
+!/requirements.txt
+!/src/
+!/configs/
+!/results/
+!/figures/
+!/report/
+
+# Course-dataset imagery is not redistributed (third-party, watermarked)
+figures/before_after.png
+report/figures/before_after.png
+**/class_check.jpg
+**/truck_test_preds.jpg
+
+# Build outputs
+report/*.pdf
+report/*.aux
+report/*.log
+**/__pycache__/
