@@ -23,6 +23,8 @@ mAP@0.5 with the patch covering about 9% of each object (validation / test):
 - **Size:** covering only 4% of each object already halves validation mAP (0.622 → 0.299).
 - **Transfer:** the patch also degrades detectors it never saw; a patch trained against YOLOv8s + YOLO11s together gave a modest, inconclusive gain on the unseen YOLOv8n.
 - **Robustness (simulated):** under patch rotation, brightness ×0.5–1.5, 4× lower resolution, JPEG quality 10 and perspective tilt, patched objects keep only 30–48% of their clean mAP (noise patch: 62–84%). The weakest case is a dark scene.
+- **Placement (31 positions):** the patch works best at the centre of the object's top surface (mAP 0.21 vs 0.39 for noise, pooled val+test); a 0.15-box-size offset costs part of the effect, 0.3 most of it, and beside the object it has none.
+- **Total-variation weight (λ = 0, 1, 2.5, 5, 10):** the smoothness penalty makes the patch stronger, not weaker (λ = 0 is the weakest, val mAP 0.176 vs 0.129); results are flat for λ between 1 and 10, so the literature value 2.5 is not a sensitive choice.
 - **Limits:** obliquely photographed tanks resist (their sides stay visible around a roof patch); evaluation sets are small (16 + 16 images); all tests are digital, not printed.
 
 All numbers are in [`results/`](results/) (`results/attack/summary.csv` collects every attack run). The full write-up is the IEEE-format report in [`report/`](report/).
@@ -73,6 +75,7 @@ of those images otherwise) and converts four polygon labels to boxes.
 | 7. Ensemble patch | `python src/attack_patch.py --weights runs/baseline/yolov8s/weights/best.pt runs/baseline/yolo11s/weights/best.pt --epochs 20 --name patch_ens` | ~2 h | `runs/attack/patch_ens/` |
 | 8. Ensemble transfer | `python src/attack_patch.py --eval-only --weights runs/baseline/yolov8n/weights/best.pt --patch runs/attack/patch_ens/patch.png --name ens_on_yolov8n` (same for `yolo11s`) | ~3 min each | `runs/attack/ens_on_*/` |
 | 9. Robustness | `python src/robustness.py` | ~10 min | `runs/robustness/yolov8s/` |
+| 9b. Placement study and TV ablation | `powershell -ExecutionPolicy Bypass -File run_final_extras.ps1` (or `bash run_final_extras.sh`), then `python src/make_extra_figures.py` | ~5 h | `runs/placement/`, `runs/attack/tv_*/`, `runs/robustness/tv_*/` |
 | 10. Summary, figures, results | `python src/summarize.py`, `python src/make_figures.py`, `python src/collect_results.py` | seconds | `runs/attack/summary.csv`, `figures/`, `results/` |
 
 Long runs can be continued after an interruption by repeating the command with `--resume` (steps 2, 3, 5
@@ -86,6 +89,8 @@ and 7) or by re-running it (step 9 skips finished conditions).
 | `src/train_baseline.py` | Fine-tunes YOLOv8 / YOLO11; reports precision, recall, per-class AP, mAP |
 | `src/attack_patch.py` | EOT patch training (single model or ensemble); clean / random-noise / adversarial evaluation |
 | `src/robustness.py` | One-factor-at-a-time robustness study (rotation, brightness, resolution, JPEG, perspective) |
+| `src/placement_study.py` | Evaluates the trained patch at 31 positions on/beside each object, plus random and detector-guided placement |
+| `src/make_extra_figures.py` | Placement and total-variation ablation figures |
 | `src/summarize.py` | Collects all attack runs into one table |
 | `src/make_figures.py` | Result figures |
 | `src/collect_results.py` | Copies the small result files from `runs/` into `results/` |

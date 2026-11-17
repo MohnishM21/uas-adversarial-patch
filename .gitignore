@@ -8,6 +8,8 @@
 !/results/
 !/figures/
 !/report/
+!/run_final_extras.ps1
+!/run_final_extras.sh
 
 # Course-dataset imagery is not redistributed (third-party, watermarked)
 figures/before_after.png

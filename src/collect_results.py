@@ -8,7 +8,7 @@ from pathlib import Path
 
 RUNS, OUT = Path("runs"), Path("results")
 KEEP = ("attack_metrics.json", "args.json", "train_log.json", "patch.png", "baseline_metrics.json",
-        "robustness_metrics.json", "results.csv")
+        "robustness_metrics.json", "results.csv", "placement_metrics.json")
 
 if OUT.exists():
     shutil.rmtree(OUT)

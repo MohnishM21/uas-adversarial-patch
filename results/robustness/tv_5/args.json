@@ -1,0 +1,14 @@
+{
+  "weights": "runs/baseline/yolov8s/weights/best.pt",
+  "patch": "runs/attack/tv_5/patch.png",
+  "data_root": "data_yolo",
+  "name": "tv_5",
+  "device": "cuda",
+  "imgsz": 640,
+  "patch_scale": 0.3,
+  "min_box": 12,
+  "factors": [
+    "resolution",
+    "jpeg_quality"
+  ]
+}

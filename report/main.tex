@@ -39,7 +39,11 @@ modification to unseen detectors (YOLOv8n and YOLO11s); a patch trained against 
 ensemble matches the single-model patch on its source detector and gives a modest further
 transfer gain on validation. In simulation the patch remains effective
 under patch rotation, scene brightness from $\times0.5$ to $\times1.5$, a $4\times$
-resolution reduction, heavy JPEG compression, and perspective distortion. Its main
+resolution reduction, heavy JPEG compression, and perspective distortion. A placement study
+over 31 positions shows that the centre of the target's top surface is optimal: the effect
+decays as the patch is moved off-centre and vanishes when it lies beside the object. An
+ablation of the total-variation weight shows that smoothing strengthens rather than weakens
+the attack, and that results are stable for weights from 1 to 10. Its main
 limitations are reduced efficacy in dark scenes and on oblique views of vehicles whose
 sides remain visible.
 \end{abstract}
@@ -75,8 +79,12 @@ corrected the class mapping and recovered 3\% of training images;
 separating adversarial effect from plain occlusion;
 \item a patch-size sweep, a transferability study on two unseen detectors, an ensemble-trained
 patch, and a one-factor-at-a-time robustness study (rotation, lighting, resolution,
-compression, perspective).
+compression, perspective);
+\item a placement study that quantifies where on the object the patch should go, and an
+ablation of the total-variation weight that justifies the value used.
 \end{itemize}
+All code, configuration files and result summaries are available at
+\url{https://github.com/MohnishM21/uas-adversarial-patch}.
 
 % ===========================================================================
 \section{Related Work}
@@ -100,8 +108,32 @@ patterns, consistent with our findings (Section~\ref{sec:attackres}).
 projected adversarial light patterns onto objects instead of printing them, an alternative
 physical channel relevant to future work.
 
+Du \emph{et al.} \cite{du2022physical} printed patches at full scale and attacked an overhead
+car detector, using the same loss weights as Thys \emph{et al.} (TV weight 2.5,
+non-printability weight 0.01). Lian \emph{et al.} \cite{lian2022benchmarking} benchmarked
+patch attacks on aerial detection and showed that adaptive patches can also act from outside
+the target.
+
+\textbf{Patch placement.} Where the patch goes has been studied as a design variable. Thys
+\emph{et al.} \cite{thys2019fooling} centre the patch on each person's box and scale it with
+the box. den Hollander \emph{et al.} \cite{denhollander2020adversarial} compared patches
+\emph{on top of} aircraft at two sizes ($0.1\times$ and $0.2\times$ the box side), a patch
+\emph{next to} the aircraft, and two small patches. The on-top patch was the most effective;
+the next-to patch was markedly weaker, and two small patches were no better than one. Du
+\emph{et al.} \cite{du2022physical} compared a roof-mounted patch (``Type ON'') with strips
+laid around the car (``Type OFF''): OFF was stronger in one digital scene, but ON was more
+effective in the physical tests. Rao \emph{et al.} \cite{rao2020location} instead optimize the
+location jointly with the pattern, showing that location is itself an attack parameter.
+
 \textbf{Transferability.} Adversarial examples often transfer between models, and optimizing
 against an ensemble of models improves black-box transfer \cite{liu2017delving}.
+
+\textbf{Defences.} Input-side defences detect and suppress patch-like regions, e.g.\ local
+gradient smoothing \cite{naseer2019local}; certified defences such as PatchGuard
+\cite{xiang2021patchguard} bound the influence of any patch through small receptive fields;
+and adversarial training \cite{madry2018towards,rao2020location} hardens the model itself.
+This report does not implement a defence, but its results indicate which of these families
+are relevant (Section~\ref{sec:discussion}).
 
 % ===========================================================================
 \section{Dataset and Data Audit}
@@ -206,6 +238,19 @@ x' = (1 - M)\odot x + M\odot \mathcal{W}(t(p)),
 \end{equation}
 where $t$ is a random transformation drawn from the EOT distribution $\mathcal{T}$.
 
+\textbf{Quantifying placement.} We describe where the patch sits by the offset of its centre
+from the box centre, normalized by the box size:
+\begin{equation}
+\delta = (\delta_x,\delta_y) = \Big(\frac{x_p - x_b}{w},\; \frac{y_p - y_b}{h}\Big),
+\end{equation}
+so $\delta=(0,0)$ is the box centre, $|\delta_x|=0.5$ is the box edge, and $\delta_y<0$ points
+towards the top of the image. With $\alpha=0.3$ the patch stays entirely on a square object
+for $|\delta_x|,|\delta_y|\leq0.35$. In near-nadir aerial images the box centre is the
+target's top surface (vehicle roof, fuselage, building roof), which is where a sheet can
+physically be laid; in oblique images that surface shifts towards $\delta_y<0$. Unless stated
+otherwise the patch is placed at $\delta=(0,0)$; Section~\ref{sec:placement} measures how
+the attack changes when it is moved.
+
 \subsection{Expectation over Transformation}
 During training each pasted copy receives an independent transformation: rotation
 $\theta\sim U(0^\circ,360^\circ)$ (aerial views have no canonical heading), scale jitter
@@ -240,6 +285,49 @@ and optimized with Adam \cite{kingma2015adam} (learning rate 0.02, halved when t
 plateaus), batch size 8, for 30 epochs ($\approx$11{,}900 steps, $\approx$1.1\,h). At most 24
 objects per training image are patched; objects smaller than 12\,px at $640$\,px input are
 skipped. Only the training split is used.
+
+\subsection{Design Rationale}
+\label{sec:rationale}
+\textbf{Disappearance, universal patch.} An undetected target is never tracked, which is the
+more dangerous failure for a UAS than a wrong label; hence the maximum over classes in
+$\mathcal{L}_{\text{det}}$. A physical attacker prints one pattern and cannot know future
+frames, hence one universal patch rather than per-image perturbations.
+
+\textbf{EOT ranges.} Each range models a physical source of variation: full rotation because
+a UAS may approach from any heading; $\pm20\%$ scale for altitude changes; $\pm15\%$ shift for
+imperfect placement on the target; brightness, contrast and noise for illumination, exposure
+and sensor noise.
+
+\textbf{Total-variation weight.} $\mathcal{L}_{\text{TV}}$ is the mean absolute difference
+between neighbouring patch pixels. High-frequency detail does not survive printing (halftoning,
+ink spread), optical blur or the downsampling that comes with altitude, so a patch that relies
+on it would fail physically; the TV term removes that detail. Its weight trades attack
+strength against smoothness: with $\lambda_{\text{TV}}\to0$ the optimizer is free to use
+pixel-level noise, while a very large weight flattens the patch towards a uniform colour that
+carries no adversarial signal. We adopt $\lambda_{\text{TV}}=2.5$, the value used by Thys
+\emph{et al.} \cite{thys2019fooling} (in their released code) and by Du \emph{et al.}
+\cite{du2022physical}, whose patches were printed and remained effective in physical tests.
+Our TV is normalized per pixel in the same way as theirs (sum of absolute neighbour
+differences divided by the number of patch elements) and our patch has the same
+$300\times300$ resolution as Thys \emph{et al.}'s, so the weight transfers directly.
+Section~\ref{sec:tv} verifies the choice with an ablation over
+$\lambda_{\text{TV}}\in\{0,1,2.5,5,10\}$.
+
+\textbf{Patch size and placement.} $\alpha=0.3$ (9\% of the box, e.g.\ a
+$1.5\times1.5$\,m sheet on a $7\times3.5$\,m tank) is a realistic, covert size between the
+$0.1$ and $0.2$ relative sides studied by den Hollander \emph{et al.}
+\cite{denhollander2020adversarial}; Section~\ref{sec:size} varies it. We place the patch at the
+box centre, $\delta=(0,0)$, for four reasons. (i) It is physically realizable: in overhead
+views the centre is the target's top surface, where the sheet would be laid. (ii) It
+maximizes the margin to the object boundary, so placement errors (modelled by the $\pm15\%$
+EOT shift) keep the patch on the object. (iii) The detector predicts each object from anchor
+points inside its box, and the central ones see the whole object; a patch there sits in the
+receptive field of all of them. (iv) It follows prior work: centred patches in
+\cite{thys2019fooling}, on-top patches outperforming next-to patches in
+\cite{denhollander2020adversarial}, and roof-mounted patches being more effective physically
+in \cite{du2022physical}. Because training already randomizes the position by $\pm15\%$, the
+patch is not tuned to the exact centre; Section~\ref{sec:placement} quantifies the effect of
+moving it across and off the object.
 
 \subsection{Evaluation Protocol}
 On validation and test images, the converged patch is pasted at the centre of every object
@@ -312,6 +400,10 @@ localized detections (IoU\,$\geq$\,0.5) fall from 10 to 1 of 17. The patch thus 
 some objects and scrambles the localization of others, consistent with the collapse in
 precision.
 
+\textbf{Inference.} Most of the damage comes from the learned pattern, not from occlusion: at
+the same size and position it removes twice as much mAP as random noise. A safety assessment
+that only tests random occlusion would underestimate this threat by about half.
+
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.95\textwidth]{patch_evolution.png}
@@ -330,10 +422,15 @@ buildings; correct detections fall from 10 to 1 of 17.}
 \end{figure}
 
 \subsection{Effect of Patch Size}
+\label{sec:size}
 Without retraining, we evaluate the same patch at four sizes (Fig.~\ref{fig:size},
 Table~\ref{tab:size}). The adversarial patch is far more damaging than random noise at every
 size: at only 4\% coverage it halves validation mAP (0.622$\to$0.299, versus 0.506 for
 noise), and at 16\% coverage it reduces validation mAP to 0.053.
+
+\textbf{Inference.} The effect is dose-dependent and beats occlusion at every size, so the
+attack does not need a conspicuous patch: 4\% coverage (about 1\,m$^2$ on a 7\,m tank)
+already halves mAP.
 
 \begin{table}[t]
 \centering
@@ -362,6 +459,165 @@ and a random-noise patch of identical size and placement. Dashed line: clean per
 \label{fig:size}
 \end{figure*}
 
+\subsection{Effect of Patch Placement}
+\label{sec:placement}
+To decide where on the object the patch should go, we evaluate the trained patch, unchanged
+and at $\alpha=0.3$, at 31 placements: 25 on-object offsets
+$\delta\in\{-0.3,-0.15,0,0.15,0.3\}^2$; four positions \emph{beside} the object
+($|\delta|=0.75$ along one axis, so the patch lies just outside the box); a \emph{random}
+on-object offset per object, uniform in $\pm0.3$ (imprecise placement); and a
+\emph{detector-guided} placement at the anchor point of the strongest clean prediction inside
+each box (on average $0.24$ box sizes from the centre). Per-object rotations are identical for
+every placement, so only the position changes. Validation and test are pooled (32 images,
+clean mAP@0.5 0.538), and each placement is compared with the noise patch at the same
+position. Fig.~\ref{fig:placement} and Table~\ref{tab:placement} give the results.
+
+\begin{table}[t]
+\centering
+\caption{Placement study (pooled val+test, YOLOv8s, $\alpha=0.3$, clean mAP@0.5 0.538).
+Rings are the on-object offsets with $\max(|\delta_x|,|\delta_y|)$ equal to the given value
+(mean over 8 and 16 positions). Effect = noise $-$ adversarial.}
+\label{tab:placement}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lcccc}
+\toprule
+Placement & Noise & Adv. & Retained & Effect \\
+\midrule
+Centre, $\delta=(0,0)$ & 0.394 & \textbf{0.207} & \textbf{0.38} & \textbf{0.19} \\
+Ring 0.15 & 0.419 & 0.285 & 0.53 & 0.13 \\
+Ring 0.30 & 0.429 & 0.393 & 0.73 & 0.04 \\
+Random on-object ($\pm0.3$) & 0.428 & 0.305 & 0.57 & 0.12 \\
+Detector-guided peak & 0.406 & 0.301 & 0.56 & 0.11 \\
+Beside the object & 0.467 & 0.484 & 0.90 & $-0.02$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{placement.png}
+\caption{Placement study. Left: adversarial mAP@0.5 as the patch centre is moved across the
+object ($\delta$ in box widths/heights; $\delta_y<0$ is towards the top of the image).
+Centre: the pattern's effect beyond occlusion (noise $-$ adversarial). Right: placement
+strategies against the noise patch at the same positions.}
+\label{fig:placement}
+\end{figure*}
+
+\begin{itemize}
+\item \textbf{The centre is optimal.} Of all 31 placements, $\delta=(0,0)$ gives the lowest
+mAP (0.207) and the largest effect beyond occlusion (0.19). The effect decays steadily with
+distance from the centre: at 0.15 box sizes the retained ratio rises from 0.38 to 0.53, and at
+0.30 to 0.73, where the pattern adds little beyond occlusion (0.04).
+\item \textbf{The patch must be on the object.} Beside the object it is no better than
+noise (0.484 vs.\ 0.467) and barely below clean. The patch works by changing the object's
+appearance, not the surrounding scene. This agrees with den Hollander \emph{et al.}, where
+on-top patches outperformed next-to patches \cite{denhollander2020adversarial}, and with the
+physical tests of Du \emph{et al.} \cite{du2022physical}. Off-object attacks are possible
+\cite{lian2022benchmarking}, but require a patch trained for that placement.
+\item \textbf{No preferred side.} Moving towards the top or bottom, left or right gives
+similar values (e.g.\ 0.278 at $\delta_y=-0.15$ vs.\ 0.264 at $+0.15$; 0.247 at
+$\delta_x=-0.15$ vs.\ 0.234 at $+0.15$), as expected for a rotation-invariant patch on
+near-nadir views. ``On top'' should therefore be read as the centre of the top surface.
+\item \textbf{Detector-guided placement does not help.} Placing the patch where the
+detector's strongest clean prediction comes from (0.301) is worse than the centre, because
+those anchor points are on average 0.24 box sizes off-centre; the patch was trained around
+the centre (EOT shift $\pm15\%$), and the central position lies in the receptive field of all
+of the object's predictions.
+\item \textbf{Tolerance to placement error.} A random on-object position within $\pm0.3$
+still leaves mAP at 0.305 against 0.428 for noise, so an imprecisely placed patch keeps
+about two thirds of the centred patch's effect.
+\end{itemize}
+
+\textbf{How the placement is finalized.} The sweep confirms the choice made a priori in
+Section~\ref{sec:rationale}: the patch is placed at the centre of the target's top surface,
+and the attack tolerates errors of up to about 0.15 box sizes (the EOT training range) with a
+moderate loss. Since all other results use the centre, they represent the best-case
+placement; with realistic placement errors of $\pm0.3$ the retained ratio would rise from
+0.38 to about 0.57. An attacker expecting less precise placement should widen the EOT shift
+during training, trading some peak effect for tolerance, or optimize the location jointly with
+the pattern \cite{rao2020location}.
+
+\textbf{Inference.} Placement is a first-order attack parameter: moving the same patch by a
+third of the object size removes most of its adversarial effect, and moving it off the object
+removes all of it. The patch is effective because it alters the object's own appearance at the
+centre of its top surface, which is also where it is physically easiest to place.
+
+\subsection{Choice of the Total-Variation Weight}
+\label{sec:tv}
+To check the choice of $\lambda_{\text{TV}}=2.5$ (Section~\ref{sec:rationale}), the patch was
+retrained from scratch with $\lambda_{\text{TV}}\in\{0,1,5,10\}$, keeping every other setting
+of the main run identical (seed, EOT ranges, optimizer, 30 epochs, $\alpha=0.3$, centre
+placement). Each patch is evaluated at full resolution on validation and test, and under the
+two degradations that most resemble printing and long-range imaging, $4\times$ resolution
+reduction and JPEG quality 10, reported as the retained fraction of clean mAP@0.5 on pooled
+validation and test (lower is a stronger attack, as in Section~\ref{sec:robust}).
+Table~\ref{tab:tv} and Fig.~\ref{fig:tv} give the results.
+
+\begin{table}[t]
+\centering
+\caption{Total-variation ablation (YOLOv8s, $\alpha=0.3$, centre placement). TV is the final
+smoothness term of the patch; mAP@0.5 under attack on validation and test (clean 0.622 and
+0.490; random noise 0.376 and 0.393); retained = adversarial/clean mAP@0.5 on pooled
+val+test at 25\% resolution and at JPEG quality 10. Lower is a stronger attack.}
+\label{tab:tv}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cccccc}
+\toprule
+$\lambda_{\text{TV}}$ & TV & Val & Test & Ret.\ 25\% res. & Ret.\ JPEG 10 \\
+\midrule
+0    & 0.442 & 0.176 & 0.239 & 0.44 & 0.30 \\
+1    & 0.111 & 0.138 & 0.230 & 0.43 & 0.29 \\
+\textbf{2.5} & 0.056 & 0.129 & 0.226 & 0.40 & 0.30 \\
+5    & 0.038 & 0.134 & 0.221 & 0.39 & 0.29 \\
+10   & 0.032 & 0.119 & 0.209 & 0.40 & 0.25 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{tv_ablation.png}
+\caption{Total-variation ablation. Left: the converged patches for each
+$\lambda_{\text{TV}}$ with their final TV value; without the penalty the patch is dominated by
+pixel-level noise, while larger weights give fewer, larger structures. Right: attack strength
+at full resolution (mAP@0.5) and retained fraction of clean mAP@0.5 at 25\% resolution and
+JPEG quality 10 (lower is stronger).}
+\label{fig:tv}
+\end{figure*}
+
+\textbf{Findings.}
+\begin{itemize}
+\item \emph{Smoothness helps the attack rather than costing it.} The unregularized patch
+($\lambda_{\text{TV}}=0$) has eight times the TV of the main patch and is the weakest
+(validation 0.176 vs.\ 0.129) and the least robust to downsampling (retained 0.44 vs.\ 0.40).
+A likely explanation is that pixel-level detail is averaged out by the rotation and scaling
+resampling in EOT, and by downsampling at test time, so the penalty steers the optimizer
+towards larger structures that survive these transformations. No trade-off between strength
+and smoothness appears within the tested range.
+\item \emph{Diminishing returns beyond 2.5.} TV falls by a factor of two from
+$\lambda_{\text{TV}}=1$ to 2.5, but only from 0.056 to 0.032 between 2.5 and 10. For all
+$\lambda_{\text{TV}}\ge1$ the validation and test mAP@0.5 stay within 0.02 of each other,
+which is about the variation expected from 16-image splits; $\lambda_{\text{TV}}=10$ is
+marginally the strongest (0.119 / 0.209) and the most robust to JPEG 10 (0.25).
+\item \emph{The over-smoothing end is not reached.} The flattening expected for very large
+weights (Section~\ref{sec:rationale}) has not set in by $\lambda_{\text{TV}}=10$: the patch
+still carries a strong structure of dark blobs on green and remains the most effective.
+\end{itemize}
+
+\textbf{How the weight is finalized.} $\lambda_{\text{TV}}=2.5$ was chosen a priori from prior
+work \cite{thys2019fooling,du2022physical}, and the ablation confirms that it lies on the
+flat, well-performing part of the curve: it removes 87\% of the TV of the unregularized patch,
+and its attack strength is within evaluation noise of the best value. The result is
+therefore not sensitive to the exact weight once it is at least 1. Because a smoother patch
+also prints more faithfully, a physical deployment would favour the largest weight that does
+not weaken the attack, here $\lambda_{\text{TV}}=5$--10; we keep 2.5 for the main results for
+comparability with prior work, since the differences are within the noise of a single seed
+and 32 evaluation images.
+
+\textbf{Inference.} The total-variation penalty is not merely a printability constraint
+traded against attack strength: on this task it makes the patch both smoother and stronger,
+and the attack is robust to the precise choice of weight between 1 and 10.
+
 \subsection{Transferability}
 \label{sec:transfer}
 To test whether the attack requires knowledge of the deployed model, the patch optimized on
@@ -372,7 +628,8 @@ backbone and head), which it never saw (Fig.~\ref{fig:transfer}, Table~\ref{tab:
 \centering
 \caption{Transfer of the YOLOv8s patch (mAP@0.5, $\alpha=0.3$).}
 \label{tab:transfer}
-\setlength{\tabcolsep}{4pt}
+\setlength{\tabcolsep}{3.5pt}\small
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
  & \multicolumn{3}{c}{Validation} & \multicolumn{3}{c}{Test} \\
@@ -383,7 +640,7 @@ YOLOv8s (white-box) & 0.622 & 0.376 & 0.129 & 0.490 & 0.393 & 0.226 \\
 YOLOv8n (unseen) & 0.689 & 0.517 & 0.409 & 0.465 & 0.400 & 0.308 \\
 YOLO11s (unseen) & 0.743 & 0.501 & 0.350 & 0.469 & 0.408 & 0.309 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{figure*}[t]
@@ -403,6 +660,10 @@ strongly (test AP 0.680$\to$0.164 on YOLOv8n and 0.626$\to$0.166 on YOLO11s), ai
 transfer to YOLO11s (validation 0.955$\to$0.427) but not to YOLOv8n (0.605 adversarial vs.\
 0.598 noise), and test tanks resist on every model.
 
+\textbf{Inference.} The attacker does not need the deployed model: a patch built on a
+surrogate detector degrades unseen ones. Replacing or upgrading the detector is therefore not
+a defence on its own.
+
 \subsection{Ensemble Patch}
 \label{sec:ensemble}
 Optimizing against several models is a standard way to improve black-box transfer
@@ -417,7 +678,8 @@ compares the two patches.
 \caption{Single-model vs.\ ensemble patch (mAP@0.5, val\,/\,test, $\alpha=0.3$).
 Noise is the random-noise control on the same detector.}
 \label{tab:ensemble}
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{2.5pt}\footnotesize
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccc}
 \toprule
 Target & Noise & Single (v8s) & Ensemble (v8s+11s) \\
@@ -426,7 +688,7 @@ YOLOv8s (seen by both) & 0.376\,/\,0.393 & 0.129\,/\,0.226 & \textbf{0.122}\,/\,
 YOLO11s (seen by ens.) & 0.501\,/\,0.408 & 0.350\,/\,0.309 & \textbf{0.246}\,/\,\textbf{0.264} \\
 YOLOv8n (unseen) & 0.517\,/\,0.400 & 0.409\,/\,\textbf{0.308} & \textbf{0.354}\,/\,0.317 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 Sharing one patch between two detectors cost nothing on YOLOv8s (0.122 vs.\ 0.129 on
@@ -438,6 +700,7 @@ gives at most a modest transfer gain here; confirming it would require a larger 
 set and more held-out detectors.
 
 \subsection{Robustness to Imaging Conditions}
+\label{sec:robust}
 We vary one condition at a time, applying it to the whole image \emph{after} the patch is
 pasted, as a camera would observe a physical patch; clean and noise images undergo the same
 condition. Validation and test are pooled (32 images, 238 objects). Fig.~\ref{fig:robust}
@@ -502,8 +765,13 @@ warping, which did not prevent the patch from working on other classes. This sup
 explanation that the tanks' resistance comes from scene content---visible sides and gun
 barrels in oblique photographs---rather than from image distortion.
 
+\textbf{Inference.} Ordinary operating variations (heading, light, altitude, video
+compression, camera tilt) do not neutralize the attack, so a defender cannot rely on them.
+The weakest case, low light, shows where the EOT distribution should be widened.
+
 % ===========================================================================
 \section{Discussion and Limitations}
+\label{sec:discussion}
 \textbf{Security implications.} A single universal, smooth patch covering a few percent of an
 object's area suppresses most detections of a fine-tuned UAS detector, survives realistic
 variations in viewing and imaging conditions, and transfers to detectors it was not trained
@@ -539,11 +807,44 @@ from 0.622 to 0.129, roughly twice the damage of a random patch of the same size
 converges to a vegetation-like camouflage texture, transfers to unseen YOLOv8n and YOLO11s
 detectors---more so when trained against an ensemble, although the gain on the unseen model
 was small---and remains effective in simulation across rotation, lighting, resolution,
-compression and perspective changes. Its main weaknesses---dark scenes and oblique views of
+compression and perspective changes. The patch must sit on the object, ideally at the centre
+of its top surface; moved beside the object it has no effect. The total-variation
+penalty makes the patch both smoother and stronger, and the weight of 2.5 adopted from prior
+work lies in a stable range (1--10) where the exact value matters little. Its main weaknesses---dark scenes and oblique views of
 vehicles---point to where physical defences and further attack research should focus.
 
 % ===========================================================================
 \begin{thebibliography}{99}
+
+\bibitem{du2022physical}
+A.~Du, B.~Chen, T.-J. Chin, Y.~W. Law, M.~Sasdelli, R.~Rajasegaran, and D.~Campbell,
+``Physical adversarial attacks on an aerial imagery object detector,'' in \emph{Proc.
+IEEE/CVF Winter Conf. Appl. Comput. Vis. (WACV)}, 2022, pp. 1796--1806.
+
+\bibitem{lian2022benchmarking}
+J.~Lian, S.~Mei, S.~Zhang, and M.~Ma, ``Benchmarking adversarial patch against aerial
+detection,'' \emph{IEEE Trans. Geosci. Remote Sens.}, vol.~60, 2022,
+doi:10.1109/TGRS.2022.3225306.
+
+\bibitem{rao2020location}
+S.~Rao, D.~Stutz, and B.~Schiele, ``Adversarial training against location-optimized
+adversarial patches,'' in \emph{Proc. Eur. Conf. Comput. Vis. Workshops (ECCVW)}, LNCS
+vol.~12539, 2020.
+
+\bibitem{naseer2019local}
+M.~Naseer, S.~Khan, and F.~Porikli, ``Local gradients smoothing: Defense against localized
+adversarial attacks,'' in \emph{Proc. IEEE Winter Conf. Appl. Comput. Vis. (WACV)}, 2019,
+pp. 1300--1307.
+
+\bibitem{xiang2021patchguard}
+C.~Xiang, A.~N. Bhagoji, V.~Sehwag, and P.~Mittal, ``PatchGuard: A provably robust defense
+against adversarial patches via small receptive fields and masking,'' in \emph{Proc. USENIX
+Security Symp.}, 2021.
+
+\bibitem{madry2018towards}
+A.~Madry, A.~Makelov, L.~Schmidt, D.~Tsipras, and A.~Vladu, ``Towards deep learning models
+resistant to adversarial attacks,'' in \emph{Proc. Int. Conf. Learn. Representations
+(ICLR)}, 2018.
 
 \bibitem{szegedy2014intriguing}
 C.~Szegedy, W.~Zaremba, I.~Sutskever, J.~Bruna, D.~Erhan, I.~Goodfellow, and R.~Fergus,
