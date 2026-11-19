@@ -1,6 +1,11 @@
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
 
+\usepackage{iftex}
+\ifXeTeX
+  \usepackage{fontspec}
+  \setmainfont{texgyretermes}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\fi
 \usepackage{cite}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
@@ -43,7 +48,7 @@ resolution reduction, heavy JPEG compression, and perspective distortion. A plac
 over 31 positions shows that the centre of the target's top surface is optimal: the effect
 decays as the patch is moved off-centre and vanishes when it lies beside the object. An
 ablation of the total-variation weight shows that smoothing strengthens rather than weakens
-the attack, and that results are stable for weights from 1 to 10. Its main
+the attack, and that results are stable for weights from 1 to 10. The attack's main
 limitations are reduced efficacy in dark scenes and on oblique views of vehicles whose
 sides remain visible.
 \end{abstract}
@@ -83,8 +88,7 @@ compression, perspective);
 \item a placement study that quantifies where on the object the patch should go, and an
 ablation of the total-variation weight that justifies the value used.
 \end{itemize}
-All code, configuration files and result summaries are available at
-\url{https://github.com/MohnishM21/uas-adversarial-patch}.
+All code, configuration files and result summaries are publicly available.\footnote{\url{https://github.com/MohnishM21/uas-adversarial-patch}}
 
 % ===========================================================================
 \section{Related Work}
@@ -366,6 +370,7 @@ Mil.\ Truck & 0.470 & 0.339 & \textbf{0.194} & 0.017 & 0.001 & 0.000 \\
 Tank & 0.584 & 0.688 & \textbf{0.119} & 0.581 & 0.625 & 0.648 \\
 \midrule
 mAP@0.5 & 0.622 & 0.376 & \textbf{0.129} & 0.490 & 0.393 & \textbf{0.226} \\
+Precision & 0.647 & 0.413 & 0.139 & 0.573 & 0.454 & 0.288 \\
 Recall & 0.646 & 0.478 & 0.312 & 0.468 & 0.396 & 0.263 \\
 \bottomrule
 \end{tabular}
@@ -816,6 +821,46 @@ vehicles---point to where physical defences and further attack research should f
 % ===========================================================================
 \begin{thebibliography}{99}
 
+\bibitem{szegedy2014intriguing}
+C.~Szegedy, W.~Zaremba, I.~Sutskever, J.~Bruna, D.~Erhan, I.~Goodfellow, and R.~Fergus,
+``Intriguing properties of neural networks,'' in \emph{Proc. Int. Conf. Learn.
+Representations (ICLR)}, 2014.
+
+\bibitem{goodfellow2015explaining}
+I.~J. Goodfellow, J.~Shlens, and C.~Szegedy, ``Explaining and harnessing adversarial
+examples,'' in \emph{Proc. Int. Conf. Learn. Representations (ICLR)}, 2015.
+
+\bibitem{brown2017adversarial}
+T.~B. Brown, D.~Man\'{e}, A.~Roy, M.~Abadi, and J.~Gilmer, ``Adversarial patch,''
+arXiv:1712.09665, 2017.
+
+\bibitem{lee2019physical}
+M.~Lee and Z.~Kolter, ``On physical adversarial patches for object detection,''
+arXiv:1906.11897, 2019.
+
+\bibitem{thys2019fooling}
+S.~Thys, W.~Van~Ranst, and T.~Goedem\'{e}, ``Fooling automated surveillance cameras:
+Adversarial patches to attack person detection,'' in \emph{Proc. IEEE/CVF Conf. Comput.
+Vis. Pattern Recognit. Workshops (CVPRW)}, 2019.
+
+\bibitem{denhollander2020adversarial}
+R.~den Hollander \emph{et al.}, ``Adversarial patch camouflage against aerial detection,''
+in \emph{Proc. SPIE 11543, Artificial Intelligence and Machine Learning in Defense
+Applications II}, 2020.
+
+\bibitem{athalye2018synthesizing}
+A.~Athalye, L.~Engstrom, A.~Ilyas, and K.~Kwok, ``Synthesizing robust adversarial examples,''
+in \emph{Proc. Int. Conf. Mach. Learn. (ICML)}, 2018, pp. 284--293.
+
+\bibitem{sharif2016accessorize}
+M.~Sharif, S.~Bhagavatula, L.~Bauer, and M.~K. Reiter, ``Accessorize to a crime: Real and
+stealthy attacks on state-of-the-art face recognition,'' in \emph{Proc. ACM SIGSAC Conf.
+Comput. Commun. Secur. (CCS)}, 2016, pp. 1528--1540.
+
+\bibitem{gnanasambandam2021optical}
+A.~Gnanasambandam, A.~M. Sherman, and S.~H. Chan, ``Optical adversarial attack,'' in
+\emph{Proc. IEEE/CVF Int. Conf. Comput. Vis. Workshops (ICCVW)}, 2021.
+
 \bibitem{du2022physical}
 A.~Du, B.~Chen, T.-J. Chin, Y.~W. Law, M.~Sasdelli, R.~Rajasegaran, and D.~Campbell,
 ``Physical adversarial attacks on an aerial imagery object detector,'' in \emph{Proc.
@@ -830,6 +875,10 @@ doi:10.1109/TGRS.2022.3225306.
 S.~Rao, D.~Stutz, and B.~Schiele, ``Adversarial training against location-optimized
 adversarial patches,'' in \emph{Proc. Eur. Conf. Comput. Vis. Workshops (ECCVW)}, LNCS
 vol.~12539, 2020.
+
+\bibitem{liu2017delving}
+Y.~Liu, X.~Chen, C.~Liu, and D.~Song, ``Delving into transferable adversarial examples and
+black-box attacks,'' in \emph{Proc. Int. Conf. Learn. Representations (ICLR)}, 2017.
 
 \bibitem{naseer2019local}
 M.~Naseer, S.~Khan, and F.~Porikli, ``Local gradients smoothing: Defense against localized
@@ -846,62 +895,18 @@ A.~Madry, A.~Makelov, L.~Schmidt, D.~Tsipras, and A.~Vladu, ``Towards deep learn
 resistant to adversarial attacks,'' in \emph{Proc. Int. Conf. Learn. Representations
 (ICLR)}, 2018.
 
-\bibitem{szegedy2014intriguing}
-C.~Szegedy, W.~Zaremba, I.~Sutskever, J.~Bruna, D.~Erhan, I.~Goodfellow, and R.~Fergus,
-``Intriguing properties of neural networks,'' in \emph{Proc. Int. Conf. Learn.
-Representations (ICLR)}, 2014.
-
-\bibitem{goodfellow2015explaining}
-I.~J. Goodfellow, J.~Shlens, and C.~Szegedy, ``Explaining and harnessing adversarial
-examples,'' in \emph{Proc. Int. Conf. Learn. Representations (ICLR)}, 2015.
-
-\bibitem{brown2017adversarial}
-T.~B. Brown, D.~Man\'{e}, A.~Roy, M.~Abadi, and J.~Gilmer, ``Adversarial patch,''
-arXiv:1712.09665, 2017.
-
-\bibitem{athalye2018synthesizing}
-A.~Athalye, L.~Engstrom, A.~Ilyas, and K.~Kwok, ``Synthesizing robust adversarial examples,''
-in \emph{Proc. Int. Conf. Mach. Learn. (ICML)}, 2018, pp. 284--293.
-
-\bibitem{sharif2016accessorize}
-M.~Sharif, S.~Bhagavatula, L.~Bauer, and M.~K. Reiter, ``Accessorize to a crime: Real and
-stealthy attacks on state-of-the-art face recognition,'' in \emph{Proc. ACM SIGSAC Conf.
-Comput. Commun. Secur. (CCS)}, 2016, pp. 1528--1540.
-
-\bibitem{lee2019physical}
-M.~Lee and Z.~Kolter, ``On physical adversarial patches for object detection,''
-arXiv:1906.11897, 2019.
-
-\bibitem{thys2019fooling}
-S.~Thys, W.~Van~Ranst, and T.~Goedem\'{e}, ``Fooling automated surveillance cameras:
-Adversarial patches to attack person detection,'' in \emph{Proc. IEEE/CVF Conf. Comput.
-Vis. Pattern Recognit. Workshops (CVPRW)}, 2019.
-
-\bibitem{denhollander2020adversarial}
-R.~den Hollander \emph{et al.}, ``Adversarial patch camouflage against aerial detection,''
-in \emph{Proc. SPIE 11543, Artificial Intelligence and Machine Learning in Defense
-Applications II}, 2020.
-
-\bibitem{gnanasambandam2021optical}
-A.~Gnanasambandam, A.~M. Sherman, and S.~H. Chan, ``Optical adversarial attack,'' in
-\emph{Proc. IEEE/CVF Int. Conf. Comput. Vis. Workshops (ICCVW)}, 2021.
-
-\bibitem{liu2017delving}
-Y.~Liu, X.~Chen, C.~Liu, and D.~Song, ``Delving into transferable adversarial examples and
-black-box attacks,'' in \emph{Proc. Int. Conf. Learn. Representations (ICLR)}, 2017.
-
 \bibitem{jocher2023yolov8}
 G.~Jocher, A.~Chaurasia, and J.~Qiu, ``Ultralytics YOLOv8,'' 2023. [Online]. Available:
-\url{https://github.com/ultralytics/ultralytics}
-
-\bibitem{jocher2024yolo11}
-G.~Jocher and J.~Qiu, ``Ultralytics YOLO11,'' 2024. [Online]. Available:
 \url{https://github.com/ultralytics/ultralytics}
 
 \bibitem{lin2014coco}
 T.-Y. Lin, M.~Maire, S.~Belongie, J.~Hays, P.~Perona, D.~Ramanan, P.~Doll\'{a}r, and
 C.~L. Zitnick, ``Microsoft COCO: Common objects in context,'' in \emph{Proc. Eur. Conf.
 Comput. Vis. (ECCV)}, 2014, pp. 740--755.
+
+\bibitem{jocher2024yolo11}
+G.~Jocher and J.~Qiu, ``Ultralytics YOLO11,'' 2024. [Online]. Available:
+\url{https://github.com/ultralytics/ultralytics}
 
 \bibitem{rudin1992nonlinear}
 L.~I. Rudin, S.~Osher, and E.~Fatemi, ``Nonlinear total variation based noise removal
