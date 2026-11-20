@@ -74,6 +74,13 @@ an adversary on the ground controls what those detectors see. An attack that mak
 or building ``disappear'' from an autonomous UAS's perception is the machine-learning analogue
 of camouflage netting, but engineered against a learned model instead of human vision.
 
+\textbf{Problem considered.} Given an object detector fine-tuned for a UAS on four classes of
+aerial targets (Aircraft, Building, Military Truck, Tank), can an adversary who controls only
+the physical scene, and not the aircraft, its camera or its software, make targets undetectable
+with a printable pattern placed on them? We quantify how far such a pattern degrades detection
+relative to the unattacked baseline for each class, whether it works against detectors it was
+not designed for, and whether it survives the viewing and imaging conditions a UAS encounters.
+
 This report presents a complete study of such an attack on a UAS detection pipeline:
 \begin{itemize}
 \item a fine-tuned YOLOv8s baseline on a four-class aerial dataset, with a data audit that
@@ -292,6 +299,26 @@ skipped. Only the training split is used.
 
 \subsection{Design Rationale}
 \label{sec:rationale}
+\textbf{Choice of detector.} YOLOv8s is a single-stage, real-time detector of the kind that
+fits the limited onboard computing of a UAS, with a favourable accuracy--speed trade-off
+among open-source detectors. Its small variant (11\,M parameters) trains on one laptop GPU,
+and its PyTorch implementation is fully differentiable, which a white-box patch attack
+requires. The YOLO family is also the target of most prior physical patch attacks
+\cite{lee2019physical,thys2019fooling,denhollander2020adversarial}, so results are comparable.
+Two-stage detectors such as Faster R-CNN are slower and less typical onboard; we instead test
+generality on a smaller model of the same family and on a newer architecture (YOLOv8n,
+YOLO11s; Section~\ref{sec:transfer}).
+
+\textbf{Choice of attack.} The adversary controls the scene, not the camera or the image
+stream, so digital perturbations of the whole image (e.g.\ FGSM or PGD
+\cite{goodfellow2015explaining,madry2018towards}) are not physically available. Among physical
+attacks, a printed patch is the cheapest and simplest to deploy: one sheet laid on a roof,
+without the 3D models and rendering that full-body adversarial textures need, or the projector
+and low ambient light that light-projection attacks need \cite{gnanasambandam2021optical}. Patches are
+also established for aerial detectors \cite{denhollander2020adversarial,du2022physical}.
+EOT \cite{athalye2018synthesizing} is the standard way to make such a patch robust to the
+changes in heading, altitude and lighting that the course problem asks for.
+
 \textbf{Disappearance, universal patch.} An undetected target is never tracked, which is the
 more dangerous failure for a UAS than a wrong label; hence the maximum over classes in
 $\mathcal{L}_{\text{det}}$. A physical attacker prints one pattern and cannot know future
@@ -704,6 +731,11 @@ test (0.308 vs.\ 0.317, within the variation expected from 16 images). The ensem
 gives at most a modest transfer gain here; confirming it would require a larger evaluation
 set and more held-out detectors.
 
+\textbf{Inference.} An attacker who knows several candidate detectors can cover all of them
+with one patch at no cost on any of them, so knowing the exact deployed model is even less
+necessary. Against a detector outside the ensemble, however, the extra gain over a
+single-model patch is small on this data.
+
 \subsection{Robustness to Imaging Conditions}
 \label{sec:robust}
 We vary one condition at a time, applying it to the whole image \emph{after} the patch is
@@ -815,8 +847,12 @@ was small---and remains effective in simulation across rotation, lighting, resol
 compression and perspective changes. The patch must sit on the object, ideally at the centre
 of its top surface; moved beside the object it has no effect. The total-variation
 penalty makes the patch both smoother and stronger, and the weight of 2.5 adopted from prior
-work lies in a stable range (1--10) where the exact value matters little. Its main weaknesses---dark scenes and oblique views of
-vehicles---point to where physical defences and further attack research should focus.
+work lies in a stable range (1--10) where the exact value matters little. The attack's main
+weaknesses---dark scenes and oblique views of vehicles---point to where physical defences and
+further attack research should focus.
+
+\textbf{Code availability.} All code, configuration files, result summaries and the learned
+patches are available at \url{https://github.com/MohnishM21/uas-adversarial-patch}.
 
 % ===========================================================================
 \begin{thebibliography}{99}
